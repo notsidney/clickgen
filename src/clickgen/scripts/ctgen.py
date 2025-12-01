@@ -110,6 +110,14 @@ def main() -> None:  # noqa: C901
     )
 
     parser.add_argument(
+        "-r",
+        "--bitmaps-resized",
+        type=bool,
+        default=None,
+        help="Bitmaps directory contains resized .png files, in the directory structure 'size/file.png', e.g. bitmaps-dir/24/wait-01.png",
+    )
+
+    parser.add_argument(
         "-o",
         "--out-dir",
         type=str,
@@ -191,6 +199,8 @@ def main() -> None:  # noqa: C901
                                 print_subtext(
                                     f"Linking '{magenta(link)}' with '{c.x11_cursor_name}'"
                                 )
+                                if os.path.exists(link):
+                                    os.remove(link)
                                 os.symlink(x_cursor.name, link)
 
                 print_done("XCursors Generation")

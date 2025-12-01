@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import io
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 from pathlib import Path
 
 from PIL import Image
@@ -27,11 +27,11 @@ class SinglePNGParser(BaseParser):
         hotspot: Tuple[int, int],
         sizes: Optional[List[Union[int, str]]] = None,
         delay: Optional[int] = None,
-        bitmaps_dir: Optional[Path] = None,
-        filename: Optional[str] = None,
+        resized_blobs: Optional[Dict[int, bytes]] = None,
     ) -> None:
         super().__init__(blob)
         self._image = Image.open(io.BytesIO(self.blob))
+        self._resized_blobs = resized_blobs
 
         # 'set' to prevent value duplication
         if not sizes:
@@ -50,7 +50,7 @@ class SinglePNGParser(BaseParser):
             raise ValueError(f"Hotspot x-coordinate too large: {hotspot[1]}")
         self.hotspot = hotspot
 
-        self.frames = self._parse(bitmaps_dir, filename)
+        self.frames = self._parse()
 
     def _cal_hotspot(self, res_img: Image.Image) -> Tuple[int, int]:
         def _dim(i: int) -> int:
@@ -58,9 +58,7 @@ class SinglePNGParser(BaseParser):
 
         return _dim(0), _dim(1)
 
-    def _parse(
-        self, bitmaps_dir: Optional[Path] = None, filename: Optional[str] = None
-    ) -> List[CursorFrame]:
+    def _parse(self) -> List[CursorFrame]:
         images: List[CursorImage] = []
         for s in sorted(self.sizes):
             size: int = 0
@@ -87,9 +85,8 @@ class SinglePNGParser(BaseParser):
                     "Input must be 'cursor_size:canvas_size' or an integer."
                 )
 
-            if bitmaps_dir and filename:
-                res_path = bitmaps_dir.joinpath(f"./{size}/{filename}")
-                blob = res_path.read_bytes()
+            if self._resized_blobs and size in self._resized_blobs:
+                blob = self._resized_blobs[size]
                 res_img = Image.open(io.BytesIO(blob))
             else:
                 res_img = self._image.resize((size, size), 1)
@@ -127,10 +124,14 @@ class MultiPNGParser(BaseParser):
         hotspot: Tuple[int, int],
         sizes: Optional[List[Union[int, str]]] = None,
         delay: Optional[int] = None,
-        bitmaps_dir: Optional[Path] = None,
+        resized_blobs: Optional[Dict[int, List[bytes]]] = None,
     ) -> None:
         super().__init__(blobs[0])
         self.frames = []
-        for blob in blobs:
-            png = SinglePNGParser(blob, hotspot, sizes, delay, bitmaps_dir)
+        for idx, blob in enumerate(blobs):
+            frame_resized_blobs: Dict[int, bytes] = {}
+            for size in resized_blobs or {}:
+                frame_resized_blobs[size] = resized_blobs[size][idx]
+
+            png = SinglePNGParser(blob, hotspot, sizes, delay, frame_resized_blobs)
             self.frames.append(png.frames[0])

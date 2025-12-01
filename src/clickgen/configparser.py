@@ -61,6 +61,7 @@ def parse_config_section(fp: Path, d: Dict[str, Any], **kwargs) -> ConfigSection
 
     return ConfigSection(
         bitmaps_dir=kwargs.get("bitmaps_dir", absolute_path(c["bitmaps_dir"])),
+        bitmaps_resized=c.get("bitmaps_resized", False),
         out_dir=kwargs.get("out_dir", absolute_path(c["out_dir"])),
         platforms=kwargs.get("platforms", c["platforms"]),
     )
@@ -107,43 +108,36 @@ def parse_cursors_section(
         win_sizes = size_typing(get_value("win_sizes", SIZES))
 
         filename = v["png"]
+        bitmaps_dir = (
+            config.bitmaps_dir
+            if not config.bitmaps_resized
+            else config.bitmaps_dir / str(max(x11_sizes))
+        )
 
-        if config.bitmaps_resized:
-            largest_dir = config.bitmaps_dir.joinpath(f"./{max(x11_sizes)}")
-            blobs = [f.read_bytes() for f in sorted(largest_dir.glob(filename))]
-        else:
-            blobs = [f.read_bytes() for f in sorted(config.bitmaps_dir.glob(filename))]
-
+        blobs = [f.read_bytes() for f in sorted(bitmaps_dir.glob(filename))]
         if not blobs:
             raise FileNotFoundError(
-                f"Bitmaps not found '{v['png']}' in '{config.bitmaps_dir}'"
+                f"Bitmaps not found '{filename}' in '{bitmaps_dir}'"
             )
+
+        resized_blobs: Dict[int, Union[bytes, List[bytes]]] = {}
+        if config.bitmaps_resized:
+            for size in x11_sizes:
+                size_dir = config.bitmaps_dir / str(size)
+                res_blobs = [f.read_bytes() for f in sorted(size_dir.glob(filename))]
+                resized_blobs[size] = res_blobs
 
         x11_cursor = None
         x11_cursor_name = None
         if "x11_name" in v:
-            x11_blob = open_blob(
-                blobs,
-                hotspot,
-                x11_sizes,
-                x11_delay,
-                config.bitmaps_dir if config.bitmaps_resized else None,
-                filename if config.bitmaps_resized else None,
-            )
+            x11_blob = open_blob(blobs, hotspot, x11_sizes, x11_delay, resized_blobs)
             x11_cursor = to_x11(x11_blob.frames)
             x11_cursor_name = v["x11_name"]
 
         win_cursor = None
         win_cursor_name = None
         if "win_name" in v:
-            win_blob = open_blob(
-                blobs,
-                hotspot,
-                win_sizes,
-                win_delay,
-                config.bitmaps_dir if config.bitmaps_resized else None,
-                filename if config.bitmaps_resized else None,
-            )
+            win_blob = open_blob(blobs, hotspot, win_sizes, win_delay, resized_blobs)
             ext, win_cursor = to_win(win_blob.frames)
             win_cursor_name = v["win_name"] + ext
 
