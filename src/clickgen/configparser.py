@@ -35,6 +35,7 @@ def parse_theme_section(d: Dict[str, Any], **kwargs) -> ThemeSection:
 @dataclass
 class ConfigSection:
     bitmaps_dir: Path
+    bitmaps_resized: Optional[bool]
     out_dir: Path
     platforms: List[str]
 
@@ -105,7 +106,13 @@ def parse_cursors_section(
         x11_sizes = size_typing(get_value("x11_sizes", SIZES))
         win_sizes = size_typing(get_value("win_sizes", SIZES))
 
-        blobs = [f.read_bytes() for f in sorted(config.bitmaps_dir.glob(v["png"]))]
+        filename = v["png"]
+
+        if config.bitmaps_resized:
+            largest_dir = config.bitmaps_dir.joinpath(f"./{max(x11_sizes)}")
+            blobs = [f.read_bytes() for f in sorted(largest_dir.glob(filename))]
+        else:
+            blobs = [f.read_bytes() for f in sorted(config.bitmaps_dir.glob(filename))]
 
         if not blobs:
             raise FileNotFoundError(
@@ -115,14 +122,28 @@ def parse_cursors_section(
         x11_cursor = None
         x11_cursor_name = None
         if "x11_name" in v:
-            x11_blob = open_blob(blobs, hotspot, x11_sizes, x11_delay)
+            x11_blob = open_blob(
+                blobs,
+                hotspot,
+                x11_sizes,
+                x11_delay,
+                config.bitmaps_dir if config.bitmaps_resized else None,
+                filename if config.bitmaps_resized else None,
+            )
             x11_cursor = to_x11(x11_blob.frames)
             x11_cursor_name = v["x11_name"]
 
         win_cursor = None
         win_cursor_name = None
         if "win_name" in v:
-            win_blob = open_blob(blobs, hotspot, win_sizes, win_delay)
+            win_blob = open_blob(
+                blobs,
+                hotspot,
+                win_sizes,
+                win_delay,
+                config.bitmaps_dir if config.bitmaps_resized else None,
+                filename if config.bitmaps_resized else None,
+            )
             ext, win_cursor = to_win(win_blob.frames)
             win_cursor_name = v["win_name"] + ext
 

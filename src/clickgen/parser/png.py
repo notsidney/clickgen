@@ -3,6 +3,7 @@
 
 import io
 from typing import List, Optional, Tuple, Union
+from pathlib import Path
 
 from PIL import Image
 
@@ -26,6 +27,8 @@ class SinglePNGParser(BaseParser):
         hotspot: Tuple[int, int],
         sizes: Optional[List[Union[int, str]]] = None,
         delay: Optional[int] = None,
+        bitmaps_dir: Optional[Path] = None,
+        filename: Optional[str] = None,
     ) -> None:
         super().__init__(blob)
         self._image = Image.open(io.BytesIO(self.blob))
@@ -47,7 +50,7 @@ class SinglePNGParser(BaseParser):
             raise ValueError(f"Hotspot x-coordinate too large: {hotspot[1]}")
         self.hotspot = hotspot
 
-        self.frames = self._parse()
+        self.frames = self._parse(bitmaps_dir, filename)
 
     def _cal_hotspot(self, res_img: Image.Image) -> Tuple[int, int]:
         def _dim(i: int) -> int:
@@ -55,7 +58,9 @@ class SinglePNGParser(BaseParser):
 
         return _dim(0), _dim(1)
 
-    def _parse(self) -> List[CursorFrame]:
+    def _parse(
+        self, bitmaps_dir: Optional[Path] = None, filename: Optional[str] = None
+    ) -> List[CursorFrame]:
         images: List[CursorImage] = []
         for s in sorted(self.sizes):
             size: int = 0
@@ -82,7 +87,13 @@ class SinglePNGParser(BaseParser):
                     "Input must be 'cursor_size:canvas_size' or an integer."
                 )
 
-            res_img = self._image.resize((size, size), 1)
+            if bitmaps_dir and filename:
+                res_path = bitmaps_dir.joinpath(f"./{size}/{filename}")
+                blob = res_path.read_bytes()
+                res_img = Image.open(io.BytesIO(blob))
+            else:
+                res_img = self._image.resize((size, size), 1)
+
             res_hotspot = self._cal_hotspot(res_img)
 
             if size != canvas_size:
@@ -116,9 +127,10 @@ class MultiPNGParser(BaseParser):
         hotspot: Tuple[int, int],
         sizes: Optional[List[Union[int, str]]] = None,
         delay: Optional[int] = None,
+        bitmaps_dir: Optional[Path] = None,
     ) -> None:
         super().__init__(blobs[0])
         self.frames = []
         for blob in blobs:
-            png = SinglePNGParser(blob, hotspot, sizes, delay)
+            png = SinglePNGParser(blob, hotspot, sizes, delay, bitmaps_dir)
             self.frames.append(png.frames[0])

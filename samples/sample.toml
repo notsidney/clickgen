@@ -78,7 +78,7 @@ x11_name = 'pointer11'
 
 [cursors.test_pointer12]
 png = 'pointer.png'
-win_name = 'Unavailiable'
+win_name = 'Unavailable'
 x11_name = 'pointer12'
 
 [cursors.test_pointer13]
