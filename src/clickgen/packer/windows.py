@@ -143,7 +143,7 @@ def pack_win(
 
     for fname, template in FILE_TEMPLETES.items():
         data: str = template.safe_substitute(
-            theme_name=f"{theme_name} Cursors",
+            theme_name=theme_name,
             comment=comment,
             website=website,
             scheme_reg=scheme_reg,

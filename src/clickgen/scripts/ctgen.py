@@ -169,7 +169,7 @@ def main() -> None:  # noqa: C901
             print_info("Parsing Metadata:")
             print_text(f"Cursor Package: {bold(cyan(theme.name))}")
             print_text(f"Comment: {theme.comment}")
-            print_text(f"Platform Compliblity: {config.platforms}")
+            print_text(f"Platform Compatibility: {config.platforms}")
             print_done("Metadata Parsing")
 
             # Generating XCursor
@@ -181,7 +181,7 @@ def main() -> None:  # noqa: C901
 
                 for c in cursors:
                     if c.x11_cursor and c.x11_cursor_name:
-                        print_text(f"Bitmaping '{blue(c.x11_cursor_name)}'")
+                        print_text(f"Bitmapping '{blue(c.x11_cursor_name)}'")
                         x_cursor = x11_out_dir / c.x11_cursor_name
                         x_cursor.write_bytes(c.x11_cursor)
 
@@ -191,6 +191,8 @@ def main() -> None:  # noqa: C901
                                 print_subtext(
                                     f"Linking '{magenta(link)}' with '{c.x11_cursor_name}'"
                                 )
+                                if os.path.exists(link):
+                                    os.remove(link)
                                 os.symlink(x_cursor.name, link)
 
                 print_done("XCursors Generation")
